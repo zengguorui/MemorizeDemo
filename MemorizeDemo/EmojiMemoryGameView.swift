@@ -13,15 +13,28 @@ struct EmojiMemoryGameView: View {
     
     var body: some View {
         
-        Grid(viewModel.cards) { card in
-            CardView(card: card)
-                .onTapGesture{
-                    viewModel.choose(card: card)
+        VStack {
+            Grid(viewModel.cards) { card in
+                CardView(card: card)
+                    .onTapGesture{
+                        withAnimation(.linear(duration: 0.75)) {
+                            viewModel.choose(card: card)
+                        }
+                    }
+                    .padding(5)
+            }
+            .foregroundColor(.orange)
+            .padding(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
+            
+            Button {
+                withAnimation(.easeInOut) {
+                    self.viewModel.resetGam()
                 }
-                .padding(5)
+            } label: {
+                Text("重置")
+            }
+
         }
-        .foregroundColor(.orange)
-        .padding(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
     }
 }
 
@@ -36,17 +49,39 @@ struct CardView: View {
         }
     }
     
+    @State private var animatedBonusRemaining : Double = 0
+    
+    private func startBonusTimeAnimation() {
+        animatedBonusRemaining = card.bonusRemainning
+        withAnimation(.linear(duration: card.bonusRemainning)) {
+            animatedBonusRemaining = 0
+        }
+    }
+    
     @ViewBuilder
     private func body(for size: CGSize) -> some View {
         if card.isFaceUp || !card.isMatched {
             ZStack {
-                Pie(startAngle: Angle.degrees(-90), endAngle: Angle.degrees(110-90), clockwise: true)
-                    .padding(5)
-                    .opacity(0.4)
+                if card.isConsumingBonusTime {
+                    Pie(startAngle: Angle.degrees(-90), endAngle: Angle.degrees(-animatedBonusRemaining * 360 - 90), clockwise: true)
+                        .padding(5)
+                        .opacity(0.4)
+                        .onAppear {
+                            startBonusTimeAnimation()
+                        }
+                } else {
+                    Pie(startAngle: Angle.degrees(-90), endAngle: Angle.degrees(-card.bonusRemainning * 360 - 90), clockwise: true)
+                        .padding(5)
+                        .opacity(0.4)
+                }
+                
                 Text(card.content)
+                    .rotationEffect(Angle.degrees(card.isMatched ? 360 : 0))
+                    .animation(card.isMatched ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default)
             }
-//            .modifier(Cardify(isFaceUp: card.isFaceUp, isMatched: card.isMatched))
-            .cardify(isFaceUp: card.isFaceUp, isMatched: card.isMatched)
+//            .modifier(Cardify(isFaceUp: card.isFaceUp))
+            .cardify(isFaceUp: card.isFaceUp)
+            .transition(AnyTransition.scale)
             .font(Font.system(size: fontSize(for: size)))
         }
     }

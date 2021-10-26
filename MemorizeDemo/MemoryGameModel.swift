@@ -44,12 +44,64 @@ struct MemoryGameModel <CardContent> where CardContent: Equatable{
             cards.append(Card(content: content))
             cards.append(Card(content: content))
         }
+        cards.shuffle()
     }
     
     struct Card: Identifiable {
         var id = UUID()
-        var isFaceUp: Bool = false
-        var isMatched: Bool = false
+        var isFaceUp: Bool = false {
+            didSet {
+                isFaceUp ? startUsingBonusTime() : stopUsingBonusTime()
+            }
+        }
+        var isMatched: Bool = false {
+            didSet {
+                if isMatched {
+                    stopUsingBonusTime()
+                }
+            }
+        }
         var content: CardContent
+        
+        //MARK: - 计分
+        var bonusTimeLimit: TimeInterval = 6
+        
+        private var faceUpTime: TimeInterval {
+            if let lastFaceUpDate = self.lastFaceUpDate {
+                return pastFaceUpTime + Date().timeIntervalSince(lastFaceUpDate)
+            } else {
+                return pastFaceUpTime
+            }
+        }
+        
+        var lastFaceUpDate: Date?
+        var pastFaceUpTime: TimeInterval = 0
+        
+        var bonusTimeRemainning: TimeInterval {
+            max(0, bonusTimeLimit - faceUpTime)
+        }
+        
+        var bonusRemainning : Double {
+            (bonusTimeLimit > 0 && bonusTimeRemainning > 0) ? bonusTimeRemainning / bonusTimeLimit : 0
+        }
+        
+        var hasEarnedBonus : Bool {
+            isMatched && bonusTimeRemainning > 0
+        }
+        
+        var isConsumingBonusTime: Bool {
+            isFaceUp && !isMatched && bonusTimeRemainning > 0
+        }
+        
+        private mutating func startUsingBonusTime() {
+            if isConsumingBonusTime, lastFaceUpDate == nil {
+                lastFaceUpDate = Date()
+            }
+        }
+        
+        private mutating func stopUsingBonusTime() {
+            pastFaceUpTime = faceUpTime
+            self.lastFaceUpDate = nil
+        }
     }
 }
